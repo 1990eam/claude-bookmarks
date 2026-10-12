@@ -14,16 +14,29 @@ sessions. Claude's own bookmark panel shows only the current session.
 The scope is the window's first workspace folder, which is the same project Claude's session list uses.
 For bookmarks across all projects, use the `claude-bookmarks` CLI or the `/bookmarks` skill.
 
+## Setup
+
+Needs VS Code 1.125+ with the Claude Code extension, and Node 22.18+ to build (`brew install node` on macOS).
+
+```sh
+git clone https://github.com/1990eam/claude-bookmarks && cd claude-bookmarks
+npm install
+npm run package        # runs the checks, then builds claude-bookmarks.vsix
+npm run install-local  # code --install-extension
+```
+
+On macOS the `code` command isn't on the PATH by default: run **Shell Command: Install 'code' command in PATH**
+from the Command Palette once, or skip `install-local` and use **Install from VSIX…** in the Extensions view's
+`⋯` menu. The `.vsix` is platform-independent, so one built on Linux installs on a Mac as is.
+
 ## Development
 
 ```sh
-npm install
-npm run check          # type-check + unit tests (Node's test runner, on the TS sources)
-npm run package        # builds claude-bookmarks.vsix
-npm run install-local  # installs it into VS Code
-node scripts/parity.ts --since all   # same text output as `claude-bookmarks`, for diffing
+npm run check   # type-check + unit tests (Node's test runner, on the TS sources)
+node scripts/parity.ts --since all   # Linux only: same text output as `claude-bookmarks`, for diffing
 ```
 
 The extension reads Claude's undocumented bookmark files
 (`<User>/globalStorage/anthropic.claude-code/session-bookmarks/`, in every profile) and transcripts
-(`~/.claude/projects`). **Claude Bookmarks: Diagnostics** reports what it resolved.
+(`~/.claude/projects`). `<User>` is `~/.config/Code/User` on Linux and
+`~/Library/Application Support/Code/User` on macOS. **Claude Bookmarks: Diagnostics** reports what it resolved.
