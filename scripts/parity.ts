@@ -1,11 +1,10 @@
 // Dev check: prints the core's view of all projects in the Python CLI's text format, so the two can be diffed:
 //   diff <(claude-bookmarks --since all) <(node scripts/parity.ts --since all)
 import os from "node:os";
-import path from "node:path";
 import { parseArgs } from "node:util";
 import { countLabel, groupByDay, heading, resumeCommand, snippet } from "../src/core/format.ts";
 import type { Entry } from "../src/core/model.ts";
-import { defaultProjectsDir, listBookmarkDirs } from "../src/core/paths.ts";
+import { defaultProjectsDir, profileBookmarkDirs, vscodeUserDirs } from "../src/core/paths.ts";
 import { describeRange, parseTimeRange, timeLabel } from "../src/core/range.ts";
 import { loadEntries } from "../src/core/resolve.ts";
 import { TranscriptCache } from "../src/core/transcript.ts";
@@ -29,8 +28,10 @@ const { values } = parseArgs({
   options: { since: { type: "string", default: "week" }, until: { type: "string" }, "storage-dir": { type: "string" } },
 });
 const range = parseTimeRange(values.since, values.until);
-const ownStorage = path.join(os.homedir(), ".config/Code/User/globalStorage/elian.claude-bookmarks");
-const dirs = values["storage-dir"] ? [values["storage-dir"]] : await listBookmarkDirs(ownStorage);
+const userDirs = vscodeUserDirs(process.platform, process.env, os.homedir());
+const dirs = values["storage-dir"]
+  ? [values["storage-dir"]]
+  : (await Promise.all(userDirs.map(profileBookmarkDirs))).flat();
 const { entries } = await loadEntries({
   dirs, defaultProjectsDir: defaultProjectsDir(process.env, os.homedir()), range, cache: new TranscriptCache(),
 });

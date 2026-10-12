@@ -33,7 +33,7 @@ from the Command Palette once, or skip `install-local` and use **Install from VS
 
 ```sh
 npm run check   # type-check + unit tests (Node's test runner, on the TS sources)
-node scripts/parity.ts --since all   # Linux only: same text output as `claude-bookmarks`, for diffing
+node scripts/parity.ts --since all   # same text output as `claude-bookmarks`, for diffing
 ```
 
 The extension reads Claude's undocumented bookmark files

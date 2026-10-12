@@ -4,7 +4,8 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
 import {
-  claudeBookmarkDir, defaultProjectsDir, isSafeSessionId, listBookmarkDirs, sameFolder, userDirOf,
+  claudeBookmarkDir, defaultProjectsDir, isSafeSessionId, listBookmarkDirs, profileBookmarkDirs, sameFolder, userDirOf,
+  vscodeUserDirs,
 } from "../src/core/paths.ts";
 
 const OWN = "elian.claude-bookmarks";
@@ -34,6 +35,26 @@ test("listBookmarkDirs without profiles is just the current store", async () => 
   const user = path.join(await tempDir(), "User");
   const own = path.join(user, "globalStorage", OWN);
   assert.deepEqual(await listBookmarkDirs(own), [claudeBookmarkDir(path.join(user, "globalStorage"))]);
+});
+
+test("profileBookmarkDirs lists the default profile first", async () => {
+  const user = path.join(await tempDir(), "User");
+  await mkdir(path.join(user, "profiles/builtin/agents"), { recursive: true });
+  assert.deepEqual(await profileBookmarkDirs(user), [
+    claudeBookmarkDir(path.join(user, "globalStorage")),
+    claudeBookmarkDir(path.join(user, "profiles/builtin/agents/globalStorage")),
+  ]);
+  assert.deepEqual(await profileBookmarkDirs(path.join(user, "missing")),
+    [claudeBookmarkDir(path.join(user, "missing/globalStorage"))]);
+});
+
+test("vscodeUserDirs uses each platform's config location", () => {
+  assert.equal(vscodeUserDirs("linux", {}, "/home/u")[0], "/home/u/.config/Code/User");
+  assert.deepEqual(vscodeUserDirs("linux", { XDG_CONFIG_HOME: "/xdg" }, "/home/u"),
+    ["/xdg/Code/User", "/xdg/Code - Insiders/User", "/xdg/VSCodium/User", "/xdg/Cursor/User"]);
+  assert.equal(vscodeUserDirs("darwin", {}, "/Users/u")[0], "/Users/u/Library/Application Support/Code/User");
+  assert.equal(vscodeUserDirs("win32", { APPDATA: "D:\\Roaming" }, "C:\\Users\\u")[0], "D:\\Roaming\\Code\\User");
+  assert.equal(vscodeUserDirs("win32", {}, "C:\\Users\\u")[0], "C:\\Users\\u\\AppData\\Roaming\\Code\\User");
 });
 
 test("defaultProjectsDir honors CLAUDE_CONFIG_DIR", () => {

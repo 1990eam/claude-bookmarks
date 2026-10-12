@@ -3,6 +3,7 @@ import path from "node:path";
 
 export const CLAUDE_EXTENSION_ID = "anthropic.claude-code";
 const BOOKMARKS_DIR = "session-bookmarks";
+const VSCODE_FLAVORS = ["Code", "Code - Insiders", "VSCodium", "Cursor"];
 const SESSION_ID_MAX = 200; // Claude's own bound for ids accepted by its open handler
 
 /** Claude's bookmark directory inside one profile's globalStorage root. */
@@ -31,20 +32,32 @@ async function subdirs(dir: string): Promise<string[]> {
   }
 }
 
+/** Claude's bookmark directory in every profile of a VS Code `User` dir, the default profile first. */
+export async function profileBookmarkDirs(user: string): Promise<string[]> {
+  const profileDirs: string[] = [];
+  for (const dir of await subdirs(path.join(user, "profiles"))) {
+    profileDirs.push(...(path.basename(dir) === "builtin" ? await subdirs(dir) : [dir]));
+  }
+  const roots = [path.join(user, "globalStorage"), ...profileDirs.sort().map((d) => path.join(d, "globalStorage"))];
+  return roots.map(claudeBookmarkDir);
+}
+
 /**
  * Claude's bookmark directory in every profile, the current profile first. Directories that don't exist
  * yet are included, so callers can watch for the first bookmark.
  */
 export async function listBookmarkDirs(ownStorage: string): Promise<string[]> {
-  const user = userDirOf(ownStorage);
-  const profiles = path.join(user, "profiles");
-  const profileDirs: string[] = [];
-  for (const dir of await subdirs(profiles)) {
-    profileDirs.push(...(path.basename(dir) === "builtin" ? await subdirs(dir) : [dir]));
-  }
-  const roots = [path.dirname(ownStorage), path.join(user, "globalStorage"),
-    ...profileDirs.sort().map((d) => path.join(d, "globalStorage"))];
-  return [...new Set(roots.map(claudeBookmarkDir))];
+  const own = claudeBookmarkDir(path.dirname(ownStorage));
+  return [...new Set([own, ...await profileBookmarkDirs(userDirOf(ownStorage))])];
+}
+
+/** The `User` dir of every VS Code flavor at its default location on `platform`, whether or not it exists. */
+export function vscodeUserDirs(platform: string, env: Record<string, string | undefined>, home: string): string[] {
+  const p = platform === "win32" ? path.win32 : path.posix;
+  const base = platform === "darwin" ? p.join(home, "Library", "Application Support")
+    : platform === "win32" ? env.APPDATA || p.join(home, "AppData", "Roaming")
+    : env.XDG_CONFIG_HOME || p.join(home, ".config");
+  return VSCODE_FLAVORS.map((flavor) => p.join(base, flavor, "User"));
 }
 
 export function defaultProjectsDir(env: Record<string, string | undefined>, home: string): string {
