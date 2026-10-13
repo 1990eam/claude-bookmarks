@@ -3,7 +3,6 @@ import path from "node:path";
 
 export const CLAUDE_EXTENSION_ID = "anthropic.claude-code";
 const BOOKMARKS_DIR = "session-bookmarks";
-const VSCODE_FLAVORS = ["Code", "Code - Insiders", "VSCodium", "Cursor"];
 const SESSION_ID_MAX = 200; // Claude's own bound for ids accepted by its open handler
 
 /** Claude's bookmark directory inside one profile's globalStorage root. */
@@ -49,15 +48,6 @@ export async function profileBookmarkDirs(user: string): Promise<string[]> {
 export async function listBookmarkDirs(ownStorage: string): Promise<string[]> {
   const own = claudeBookmarkDir(path.dirname(ownStorage));
   return [...new Set([own, ...await profileBookmarkDirs(userDirOf(ownStorage))])];
-}
-
-/** The `User` dir of every VS Code flavor at its default location on `platform`, whether or not it exists. */
-export function vscodeUserDirs(platform: string, env: Record<string, string | undefined>, home: string): string[] {
-  const p = platform === "win32" ? path.win32 : path.posix;
-  const base = platform === "darwin" ? p.join(home, "Library", "Application Support")
-    : platform === "win32" ? env.APPDATA || p.join(home, "AppData", "Roaming")
-    : env.XDG_CONFIG_HOME || p.join(home, ".config");
-  return VSCODE_FLAVORS.map((flavor) => p.join(base, flavor, "User"));
 }
 
 export function defaultProjectsDir(env: Record<string, string | undefined>, home: string): string {

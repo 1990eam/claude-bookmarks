@@ -12,7 +12,6 @@ sessions. Claude's own bookmark panel shows only the current session.
 - The list updates as you bookmark. It is read-only: it never writes to Claude's storage or transcripts.
 
 The scope is the window's first workspace folder, which is the same project Claude's session list uses.
-For bookmarks across all projects, use the `claude-bookmarks` CLI or the `/bookmarks` skill.
 
 ## Setup
 
@@ -33,7 +32,6 @@ from the Command Palette once, or skip `install-local` and use **Install from VS
 
 ```sh
 npm run check   # type-check + unit tests (Node's test runner, on the TS sources)
-node scripts/parity.ts --since all   # same text output as `claude-bookmarks`, for diffing
 ```
 
 The extension reads Claude's undocumented bookmark files
