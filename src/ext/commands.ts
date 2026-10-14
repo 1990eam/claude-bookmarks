@@ -1,16 +1,18 @@
 import * as vscode from "vscode";
 import {
-  contextSnippet, countLabel, groupByDay, matchesTerms, resumeCommand, responseMarkdown, searchTerms, shortId,
+  contextSnippet, countLabel, displayName, groupByDay, itemDescription, matchesTerms, resumeCommand, responseMarkdown,
+  searchTerms, shortId,
 } from "../core/format.ts";
 import type { Entry } from "../core/model.ts";
 import { CLAUDE_EXTENSION_ID, isSafeSessionId } from "../core/paths.ts";
-import { dayLabel, parseTimeRange, timeLabel } from "../core/range.ts";
+import { dayLabel, parseTimeRange } from "../core/range.ts";
 import { PRESETS, rangeLabel, type BookmarkModel } from "./model.ts";
-import type { ItemNode } from "./tree.ts";
+import type { ItemNode, Node } from "./tree.ts";
 
 const CLAUDE_OPEN_COMMAND = "claude-vscode.primaryEditor.open";
 const RESPONSE_SCHEME = "claude-bookmark";
 const COPY = "Copy Resume Command";
+const JUMP_HINT_MS = 8000;
 
 async function copyResume(entry: Entry): Promise<void> {
   await vscode.env.clipboard.writeText(resumeCommand(entry));
@@ -60,7 +62,11 @@ export class SessionOpener implements vscode.Disposable {
       await vscode.commands.executeCommand(CLAUDE_OPEN_COMMAND, id);
     } catch (e) {
       await offerCopy(`Claude couldn't open the session: ${(e as Error).message}`, entry);
+      return;
     }
+    // Claude's open command takes no message to scroll to; only its own Bookmarks panel can jump there.
+    vscode.window.setStatusBarMessage(
+      "$(bookmark) To jump to the response: Claude's Bookmarks panel → Show in conversation", JUMP_HINT_MS);
   }
 
   dispose(): void {
@@ -77,7 +83,7 @@ class ResponseDocuments implements vscode.TextDocumentContentProvider {
   }
 
   static uri(entry: Entry): vscode.Uri {
-    const name = (entry.title ?? "response").replace(/[\\/:*?"<>|#%]+/g, " ").trim().slice(0, 60) || "response";
+    const name = displayName(entry).replace(/[\\/:*?"<>|#%]+/g, " ").trim().slice(0, 60) || "response";
     return vscode.Uri.from({ scheme: RESPONSE_SCHEME, path: `/${entry.bookmark.sessionId}/${entry.bookmark.uuid}/${name}.md` });
   }
 
@@ -97,7 +103,7 @@ interface ResultItem extends vscode.QuickPickItem {
   entry: Entry;
 }
 
-/** Searches titles, branches and full response text; picking a result opens its session. */
+/** Searches names, titles, branches and full response text; picking a result opens its session. */
 async function searchBookmarks(model: BookmarkModel, opener: SessionOpener): Promise<void> {
   await model.refresh();
   if (model.state !== "ready" || !model.entries.length) {
@@ -110,9 +116,8 @@ async function searchBookmarks(model: BookmarkModel, opener: SessionOpener): Pro
     const terms = searchTerms(query);
     return newestFirst.filter((e) => matchesTerms(e, terms)).map((entry) => ({
       entry, alwaysShow: true, // already filtered on the full text, which VS Code's matcher never sees
-      label: entry.title ?? shortId(entry),
-      description: [dayLabel(entry.bookmark.addedAt), timeLabel(entry.bookmark.addedAt), entry.branch]
-        .filter(Boolean).join(" · "),
+      label: displayName(entry),
+      description: `${dayLabel(entry.bookmark.addedAt)} · ${itemDescription(entry)}`,
       detail: entry.problem ? `(${entry.problem})` : contextSnippet(entry.text ?? "", terms),
       ...(entry.text && !entry.problem && { buttons: [preview] }),
     }));
@@ -120,7 +125,7 @@ async function searchBookmarks(model: BookmarkModel, opener: SessionOpener): Pro
 
   const pick = vscode.window.createQuickPick<ResultItem>();
   pick.title = `Search Bookmarks · ${rangeLabel(model.spec)} · ${countLabel(model.entries.length)}`;
-  pick.placeholder = "Words to find in titles, branches and response text";
+  pick.placeholder = "Words to find in names, titles, branches and response text";
   pick.matchOnDescription = false;
   pick.matchOnDetail = false;
   pick.items = results("");
@@ -133,6 +138,19 @@ async function searchBookmarks(model: BookmarkModel, opener: SessionOpener): Pro
   });
   pick.onDidHide(() => pick.dispose());
   pick.show();
+}
+
+async function renameBookmark(model: BookmarkModel, entry: Entry): Promise<void> {
+  const session = entry.title ?? shortId(entry);
+  const input = await vscode.window.showInputBox({
+    title: "Rename Bookmark",
+    prompt: `Leave empty to show the session title: ${session}`,
+    value: displayName(entry),
+  });
+  if (input === undefined) return;
+  const alias = input.trim();
+  // The session title isn't stored as a name, so the row keeps following renames made in Claude.
+  await model.setAlias(entry, alias && alias !== session ? alias : undefined);
 }
 
 async function pickTimeframe(model: BookmarkModel): Promise<void> {
@@ -164,8 +182,9 @@ async function pickTimeframe(model: BookmarkModel): Promise<void> {
   await model.setSpec(spec);
 }
 
-export function registerCommands(model: BookmarkModel): vscode.Disposable {
+export function registerCommands(model: BookmarkModel, view: vscode.TreeView<Node>): vscode.Disposable {
   const opener = new SessionOpener();
+  const selected = (node: Node | undefined) => node?.kind === "item" ? node.entry : undefined;
   return vscode.Disposable.from(
     opener,
     vscode.workspace.registerTextDocumentContentProvider(RESPONSE_SCHEME, new ResponseDocuments(model)),
@@ -175,5 +194,9 @@ export function registerCommands(model: BookmarkModel): vscode.Disposable {
     vscode.commands.registerCommand("claudeBookmarks.copyResume", (node: ItemNode) => copyResume(node.entry)),
     vscode.commands.registerCommand("claudeBookmarks.showResponse", (node: ItemNode) => showResponse(node.entry)),
     vscode.commands.registerCommand("claudeBookmarks.search", () => searchBookmarks(model, opener)),
+    vscode.commands.registerCommand("claudeBookmarks.rename", async (node?: ItemNode) => {
+      const entry = selected(node ?? view.selection[0]); // a keybinding passes no node
+      if (entry) await renameBookmark(model, entry);
+    }),
   );
 }

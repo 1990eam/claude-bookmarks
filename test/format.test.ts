@@ -2,8 +2,8 @@ import { SESSION } from "./helpers.ts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  contextSnippet, countLabel, groupByDay, heading, matchesTerms, resumeCommand, searchTerms, SNIPPET_CHARS, shellQuote,
-  snippet, tooltipMarkdown, truncateMarkdown,
+  contextSnippet, countLabel, displayName, groupByDay, itemDescription, matchesTerms, responseMarkdown, resumeCommand,
+  searchTerms, SNIPPET_CHARS, sessionLabel, shellQuote, snippet, tooltipMarkdown, truncateMarkdown,
 } from "../src/core/format.ts";
 import type { Entry } from "../src/core/model.ts";
 
@@ -18,18 +18,36 @@ test("groups by day, newest first", () => {
   assert.deepEqual(groups.map((g) => g.label), ["Mon 12 Oct 2026", "Sat 10 Oct 2026"]);
 });
 
-test("heading and resume command", () => {
-  assert.equal(heading(entry()), "my code · POC-1");
+test("display name and resume command", () => {
+  assert.equal(displayName(entry()), "POC-1");
   assert.equal(resumeCommand(entry()), `cd '/home/u/my code' && claude --resume ${SESSION}`);
   assert.equal(resumeCommand(entry({ cwd: "/home/u/proj" })), `cd /home/u/proj && claude --resume ${SESSION}`);
   assert.equal(resumeCommand(entry({ cwd: "C:\\Users\\u\\my code" })),
     `cd "C:\\Users\\u\\my code"; claude --resume ${SESSION}`);
 });
 
-test("problems without a transcript still give a heading and resume command", () => {
+test("problems without a transcript still give a display name and resume command", () => {
   const gone: Entry = { bookmark: entry().bookmark, problem: "transcript not found" };
-  assert.equal(heading(gone), "session 0a1b2c3d");
+  assert.equal(displayName(gone), "session 0a1b2c3d");
   assert.equal(resumeCommand(gone), `claude --resume ${SESSION}`);
+});
+
+test("a bookmark's own name replaces the session title, which moves next to it", () => {
+  const named = entry({ alias: "Retry design" });
+  assert.equal(displayName(named), "Retry design");
+  assert.equal(sessionLabel(named), "POC-1");
+  assert.equal(sessionLabel(entry()), undefined);
+  assert.equal(itemDescription(entry()), "12:00 · main");
+  assert.equal(itemDescription(named), "12:00 · POC-1 · main");
+  const bare: Entry = { bookmark: entry().bookmark, alias: "Retry design" };
+  assert.equal(itemDescription(bare), "12:00 · session 0a1b2c3d");
+});
+
+test("tooltip and response page name the session only for named bookmarks", () => {
+  assert.match(tooltipMarkdown(entry()), /^\*\*POC-1\*\*\n\n_my code · Mon 12 Oct 2026 12:00 · main_/);
+  const named = entry({ alias: "Retry design" });
+  assert.match(tooltipMarkdown(named), /^\*\*Retry design\*\*\n\n_my code · POC-1 · Mon 12 Oct 2026 12:00 · main_/);
+  assert.match(responseMarkdown(named), /^# Retry design\n\n_my code · POC-1 · Mon 12 Oct 2026 12:00 · main_/);
 });
 
 test("shellQuote matches shlex.quote", () => {
@@ -69,6 +87,7 @@ test("search matches every term across title, branch and full text", () => {
   assert.ok(matchesTerms(e, searchTerms("rails table")));
   assert.ok(matchesTerms(e, searchTerms("planning poc")));
   assert.ok(!matchesTerms(e, searchTerms("rails django")));
+  assert.ok(matchesTerms({ ...e, alias: "Retry design" }, searchTerms("retry rails")));
   assert.ok(matchesTerms(e, []));
 });
 

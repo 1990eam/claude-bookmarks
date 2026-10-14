@@ -25,7 +25,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     view.onDidChangeVisibility((e) => model.setVisible(e.visible)),
     watchDirs(dirs, () => model.scheduleRefresh()),
     vscode.workspace.onDidChangeWorkspaceFolders(() => model.scheduleRefresh()),
-    registerCommands(model),
+    registerCommands(model, view),
     vscode.commands.registerCommand("claudeBookmarks.diagnostics", () => showDiagnostics(context, channel, () => [
       `timeframe: ${model.spec} (${rangeLabel(model.spec)})`,
       `state: ${model.state}, entries: ${model.entries.length}, scope: ${model.scope ?? "(none)"}`,

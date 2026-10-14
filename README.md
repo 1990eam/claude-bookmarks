@@ -4,12 +4,18 @@ A sidebar view of every Claude Code bookmark from **the project open in this win
 sessions. Claude's own bookmark panel shows only the current session.
 
 - Bookmarks are grouped by day. Hover one for a preview, click it to resume the session in the Claude panel.
-  Use **Show Full Response** to see the whole response as a markdown preview, or **Copy Resume Command** for a
-  terminal.
-- The search button finds words in titles, branches and full response text. Pick a result to open its session.
+  The row's buttons show the full response as a markdown preview, open the session, rename the bookmark, or
+  copy a resume command for a terminal.
+- A bookmark is labeled with its session's title until you rename it (pencil button or F2). Then the session title
+  moves next to the time. An empty name goes back to the session title.
+- Claude opens a session at its end and offers no way to scroll to a message from outside. To reach the response,
+  use **Show in conversation** in Claude's own Bookmarks panel.
+- The search button finds words in names, titles, branches and full response text. Pick a result to open its
+  session.
 - The calendar button picks the timeframe: today, yesterday, last 7 or 30 days, all time, a start date,
   or a range.
-- The list updates as you bookmark. It is read-only: it never writes to Claude's storage or transcripts.
+- The list updates as you bookmark. It is read-only: it never writes to Claude's storage or transcripts. Names
+  are kept by this extension, per machine and VS Code profile.
 
 The scope is the window's first workspace folder, which is the same project Claude's session list uses.
 

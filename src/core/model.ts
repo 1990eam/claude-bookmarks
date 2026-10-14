@@ -13,6 +13,7 @@ export interface Entry {
   cwd?: string;
   branch?: string;
   title?: string;
+  alias?: string; // the user's own name for the bookmark
   text?: string;
   problem?: Problem;
 }

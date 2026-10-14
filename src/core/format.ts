@@ -16,9 +16,19 @@ export function shortId(e: Entry): string {
   return `session ${e.bookmark.sessionId.slice(0, 8)}`;
 }
 
-/** "project · title", or the short session id when neither is known. */
-export function heading(e: Entry): string {
-  return [projectName(e.cwd), e.title].filter(Boolean).join(" · ") || shortId(e);
+/** The bookmark's own name, else its session's title, else the short session id. */
+export function displayName(e: Entry): string {
+  return e.alias ?? e.title ?? shortId(e);
+}
+
+/** The session a named bookmark belongs to; an unnamed one already shows its session as its name. */
+export function sessionLabel(e: Entry): string | undefined {
+  return e.alias === undefined ? undefined : e.title ?? shortId(e);
+}
+
+/** The dimmed text of a bookmark's row: "HH:MM · session · branch". */
+export function itemDescription(e: Entry): string {
+  return [timeLabel(e.bookmark.addedAt), sessionLabel(e), e.branch].filter(Boolean).join(" · ");
 }
 
 /** A one-line plain-text preview of a markdown response, at most `max` code points. */
@@ -73,16 +83,16 @@ export function truncateMarkdown(text: string, max: number): string {
 
 function meta(e: Entry): string {
   const when = `${dayLabel(e.bookmark.addedAt)} ${timeLabel(e.bookmark.addedAt)}`;
-  return [projectName(e.cwd), when, e.branch].filter(Boolean).join(" · ");
+  return [projectName(e.cwd), sessionLabel(e), when, e.branch].filter(Boolean).join(" · ");
 }
 
 export function tooltipMarkdown(e: Entry, max = TOOLTIP_CHARS): string {
   const body = e.problem ? `_${e.problem}_` : truncateMarkdown(e.text ?? "", max);
-  return `**${e.title ?? shortId(e)}**\n\n_${meta(e)}_\n\n---\n\n${body}`;
+  return `**${displayName(e)}**\n\n_${meta(e)}_\n\n---\n\n${body}`;
 }
 
 export function responseMarkdown(e: Entry): string {
-  return `# ${e.title ?? shortId(e)}\n\n_${meta(e)}_\n\n---\n\n${e.problem ? `_${e.problem}_` : e.text ?? ""}\n`;
+  return `# ${displayName(e)}\n\n_${meta(e)}_\n\n---\n\n${e.problem ? `_${e.problem}_` : e.text ?? ""}\n`;
 }
 
 /** Lower-cased words of a search query. */
@@ -90,9 +100,9 @@ export function searchTerms(query: string): string[] {
   return query.toLowerCase().split(/\s+/).filter(Boolean);
 }
 
-/** Whether every term occurs in the entry's title, branch or response text. */
+/** Whether every term occurs in the entry's name, title, branch or response text. */
 export function matchesTerms(e: Entry, terms: readonly string[]): boolean {
-  const haystack = [e.title, e.branch, e.text].filter(Boolean).join("\n").toLowerCase();
+  const haystack = [e.alias, e.title, e.branch, e.text].filter(Boolean).join("\n").toLowerCase();
   return terms.every((t) => haystack.includes(t));
 }
 

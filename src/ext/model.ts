@@ -1,7 +1,7 @@
 import { realpath } from "node:fs/promises";
 import os from "node:os";
 import * as vscode from "vscode";
-import type { Entry } from "../core/model.ts";
+import type { Bookmark, Entry } from "../core/model.ts";
 import { defaultProjectsDir } from "../core/paths.ts";
 import { describeRange, msUntilNextMidnight, parseTimeRange } from "../core/range.ts";
 import { loadEntries } from "../core/resolve.ts";
@@ -18,6 +18,9 @@ export const PRESETS = [
 const SPEC_KEY = "timeframe";
 const DEFAULT_SPEC = "week";
 const DEBOUNCE_MS = 300;
+
+// One key per bookmark, so windows renaming different bookmarks never overwrite each other.
+const aliasKey = (b: Bookmark) => `alias:${b.sessionId}:${b.uuid}`;
 
 export type ModelState = "loading" | "noFolder" | "noStore" | "ready";
 
@@ -103,6 +106,12 @@ export class BookmarkModel implements vscode.Disposable {
     return this.#running;
   }
 
+  /** Names a bookmark; `undefined` goes back to its session's title. Names outlive their bookmarks. */
+  async setAlias(entry: Entry, alias: string | undefined): Promise<void> {
+    await this.#context.globalState.update(aliasKey(entry.bookmark), alias);
+    await this.refresh();
+  }
+
   find(sessionId: string, uuid: string): Entry | undefined {
     return this.entries.find((e) => e.bookmark.sessionId === sessionId && e.bookmark.uuid === uuid);
   }
@@ -124,11 +133,17 @@ export class BookmarkModel implements vscode.Disposable {
         if (!this.#warned.has(w)) this.#log(`warning: ${w}`);
         this.#warned.add(w);
       }
-      this.#set(result.missingDirs.length === this.#dirs.length ? "noStore" : "ready", result.entries, scope);
+      const entries = result.entries.map((e) => this.#named(e));
+      this.#set(result.missingDirs.length === this.#dirs.length ? "noStore" : "ready", entries, scope);
     } catch (e) {
       this.#log(`error: loading bookmarks failed: ${(e as Error).stack ?? e}`);
       this.#set("ready", [], scope);
     }
+  }
+
+  #named(e: Entry): Entry {
+    const alias = this.#context.globalState.get<unknown>(aliasKey(e.bookmark));
+    return typeof alias === "string" && alias ? { ...e, alias } : e;
   }
 
   #set(state: ModelState, entries: Entry[], scope: string | undefined): void {

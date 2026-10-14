@@ -2,7 +2,7 @@
   "name": "claude-bookmarks",
   "displayName": "Claude Bookmarks",
   "description": "Every Claude Code bookmark for the open project, across all its sessions.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "elian",
   "license": "UNLICENSED",
   "repository": {
@@ -81,6 +81,12 @@
         "icon": "$(copy)"
       },
       {
+        "command": "claudeBookmarks.rename",
+        "title": "Rename…",
+        "category": "Claude Bookmarks",
+        "icon": "$(edit)"
+      },
+      {
         "command": "claudeBookmarks.diagnostics",
         "title": "Diagnostics",
         "category": "Claude Bookmarks"
@@ -128,9 +134,19 @@
           "group": "inline@1"
         },
         {
-          "command": "claudeBookmarks.copyResume",
+          "command": "claudeBookmarks.openSession",
           "when": "view == claudeBookmarks.list && viewItem =~ /^bookmark/",
           "group": "inline@2"
+        },
+        {
+          "command": "claudeBookmarks.rename",
+          "when": "view == claudeBookmarks.list && viewItem =~ /^bookmark/",
+          "group": "inline@3"
+        },
+        {
+          "command": "claudeBookmarks.copyResume",
+          "when": "view == claudeBookmarks.list && viewItem =~ /^bookmark/",
+          "group": "inline@4"
         },
         {
           "command": "claudeBookmarks.openSession",
@@ -146,6 +162,11 @@
           "command": "claudeBookmarks.copyResume",
           "when": "view == claudeBookmarks.list && viewItem =~ /^bookmark/",
           "group": "2_copy@1"
+        },
+        {
+          "command": "claudeBookmarks.rename",
+          "when": "view == claudeBookmarks.list && viewItem =~ /^bookmark/",
+          "group": "3_edit@1"
         }
       ],
       "commandPalette": [
@@ -160,9 +181,20 @@
         {
           "command": "claudeBookmarks.copyResume",
           "when": "false"
+        },
+        {
+          "command": "claudeBookmarks.rename",
+          "when": "false"
         }
       ]
-    }
+    },
+    "keybindings": [
+      {
+        "command": "claudeBookmarks.rename",
+        "key": "f2",
+        "when": "focusedView == claudeBookmarks.list && !inputFocus"
+      }
+    ]
   },
   "scripts": {
     "build": "esbuild src/ext/extension.ts --bundle --platform=node --format=cjs --target=node24 --external:vscode --outfile=dist/extension.cjs --sourcemap",
